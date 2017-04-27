@@ -63,9 +63,44 @@ class MyTestCase(unittest.TestCase):
         epochs = 10
         self._test(scheduler, targets, epochs)
 
+    def test_reduce_lr_on_plateau1(self):
+        for param_group in self.opt.param_groups:
+            param_group['lr'] = 0.5
+        targets = [ [0.5] * 20 ]
+        metrics = range(20,-1,-1)
+        scheduler = ReduceLROnPlateau(self.opt)
+        epochs = 10
+        self._test_reduce_lr_on_plateau(scheduler, targets, metrics, epochs)
+
+    def test_reduce_lr_on_plateau2(self):
+        for param_group in self.opt.param_groups:
+            param_group['lr'] = 0.5
+        targets = [ [0.5] * (2+6) + [0.05] * (5+5) +  [0.005] * 4]
+        metrics = [0.8] * 2 + [0.234] * 20
+        scheduler = ReduceLROnPlateau(self.opt,patience=5,cooldown=5)
+        epochs = 22
+        self._test_reduce_lr_on_plateau(scheduler, targets, metrics, epochs)
+
+    def test_reduce_lr_on_plateau3(self):
+        for param_group in self.opt.param_groups:
+            param_group['lr'] = 0.5
+        targets = [ [0.5] * (2+6) + [0.05] * (5+5) +  [0.005] * 4]
+        metrics = [-0.8] * 2 + [-0.234] * 20
+        scheduler = ReduceLROnPlateau(self.opt,mode='max',patience=5,cooldown=5)
+        epochs = 22
+        self._test_reduce_lr_on_plateau(scheduler, targets, metrics, epochs)
+
     def _test(self, scheduler, targets, epochs=10):
         for epoch in range(epochs):
             scheduler.step(epoch)
+            for param_group, target in zip(self.opt.param_groups, targets):
+                self.assertAlmostEquals(target[epoch], param_group['lr'], msg='LR is wrong in epoch {}'.format(epoch))
+
+    def _test_reduce_lr_on_plateau(self, scheduler, targets, metrics, epochs=10, verbose=0):
+        for epoch in range(epochs):
+            scheduler.step(epoch,metrics[epoch])
+            if verbose>0:
+                print('epoch{}:\tlr={}'.format(epoch,self.opt.param_groups[0]['lr']))
             for param_group, target in zip(self.opt.param_groups, targets):
                 self.assertAlmostEquals(target[epoch], param_group['lr'], msg='LR is wrong in epoch {}'.format(epoch))
 
